@@ -13,6 +13,7 @@ object ModuleVersions {
         ":memshell-party-server:memshell-party-server-struts2" to "3.0.0",
         ":memshell-party-server:memshell-party-server-dubbo" to "3.0.0",
         ":memshell-party-shelltool:memshell-party-shelltool-godzilla" to "3.0.0",
+        ":memshell-party-shelltool:memshell-party-shelltool-godzilla-hw" to "3.0.0",
         ":memshell-party-shelltool:memshell-party-shelltool-behinder" to "3.0.0",
         ":memshell-party-shelltool:memshell-party-shelltool-command" to "3.0.0",
         ":memshell-party-shelltool:memshell-party-shelltool-suo5" to "3.0.0",

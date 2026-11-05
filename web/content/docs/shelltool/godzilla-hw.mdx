@@ -1,0 +1,128 @@
+---
+title: Godzilla HW
+description: 按加密器拆分模板的 Godzilla 内存马工具，支持 JAVA_AES_BASE64 / RAW / RAW_BASE64 / BASE64_PRO / BASE64_PROFILE，单文件只带当前加密器协议，体积更小、静态特征更少。
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+
+<Callout type="info">项目地址：https://github.com/BeichenDream/Godzilla</Callout>
+
+`GodzillaHw` 是 `Godzilla` 工具的一个变体实现，面向受控靶场中的内存马生成与兼容性验证。与通用 `Godzilla` 工具的区别：
+
+- **一个加密器一个模板文件**：`GodzillaHwFilter`、`GodzillaHwFilterRaw`、`GodzillaHwFilterRawBase64`、`GodzillaHwFilterPro`、`GodzillaHwFilterProfile` 各自只包含对应协议，生成物不会携带另外几种加密器的代码。
+- **生成时按配置选模板**：基础模板名 + 加密器后缀，选择 `JAVA_AES_RAW` 时只解析并加载 `...Raw` 模板。
+- **不改变客户端协议**：直接使用原版 Godzilla 客户端连接，加密器选择必须与服务端生成时一致。
+
+## 支持的加密器
+
+| 加密器 | 请求 | 响应 |
+| --- | --- | --- |
+| `JAVA_AES_BASE64` | `pass=urlencode(base64(AES(payload)))` | `md5[0:16] + base64(AES(result)) + md5[16:32]` |
+| `JAVA_AES_RAW` | 裸 AES 字节，`Content-Type: application/octet-stream` | 裸 AES 字节 |
+| `JAVA_AES_RAW_BASE64` | `base64(AES(payload))` | `md5(key)[0:16] + base64(AES(result)) + md5(key)[16:32]` |
+| `JAVA_AES_BASE64_PRO` | `AuthType=apiLogin&name=sysadmin&loginCa=...`，AES/CBC | `{"msg":"<RadomEncrypt(AES-CBC(result))>"}` |
+| `JAVA_AES_BASE64_PROFILE` | 客户端 `profiles/<name>.profile` 中 `request` 模板 | 客户端下发 `response` 模板，服务端填充 `##style##` |
+| `JAVA_WEB_SOCKET_AES_RAW` | WebSocket 二进制帧，裸 AES（仅 `key`） | WebSocket 二进制帧，裸 AES |
+
+> `JAVA_WEB_SOCKET_AES_RAW` 只用于 `WebSocket` / `RawWebSocket` 挂载类型；这些模板没有 `headerName` / `headerValue` 请求头门闩，入口是 WebSocket endpoint 路径。
+>
+> `JAVA_CHUNK_AES_RAW`、`JAVA_JNDI_AES_RAW`、`JAVA_ORACLE_XOR_RAW` 分别依赖全双工 chunk 信道、JNDI 与 Oracle 信道，不属于普通 HTTP 内存马协议，暂未纳入本工具。
+
+## 使用步骤
+
+<Steps>
+<Step>
+### 选择 GodzillaHw
+
+在工具列表中选择 `GodzillaHw`，挂载类型按目标容器选择（Filter / Valve / Listener / Servlet / Handler / Interceptor / ControllerHandler / Action / ProxyValve / AgentServletHandler / NettyHandler / WebSocket / RawWebSocket 等）。
+
+![godzilla_tool_select.png](../images/godzilla_tool_select.png)
+</Step>
+
+<Step>
+### 选择加密器并设置连接参数
+
+- `cryption` 下拉选择加密器，默认 `JAVA_AES_BASE64`。
+- 密码、密钥、流量入口请求头与值需要与客户端一致；入口头用于把正常业务放行，只有带该头的请求才进入内存马逻辑。
+
+![godzilla_config](../images/godzilla_config.png)
+</Step>
+
+<Step>
+### 生成并注入
+
+选择打包方式并注入。内存马类名、包名由生成器按目标中间件风格随机采样，不包含 `Godzilla` 等固定特征。
+
+</Step>
+
+<Step>
+### 使用客户端连接
+
+1. 有效载荷选择 `JavaDynamicPayload`。
+2. 加密器选择与生成时一致的值（上表）。
+3. 在 Shell 的「请求头」处配置与生成时一致的流量入口头。
+4. `JAVA_AES_BASE64_PROFILE` 还需要把 `profiles/<name>.profile` 放到客户端工作目录的 `profiles/` 下，并在 Shell 配置里选择对应 Profile。
+
+![godzilla_client](../images/godzilla_client.png)
+</Step>
+</Steps>
+
+## Netty 与 WebSocket
+
+### NettyHandler
+
+适用于 Spring WebFlux（Reactor Netty）与 XXL-JOB 等 Netty 服务端。挂载类型选 `NettyHandler`，加密器仍选 5 个 HTTP 加密器之一；客户端正常用 HTTP 连接，URL 指向任意会经过 Netty pipeline 的路径：
+
+```bash
+java -jar godzilla-cli.jar exec \
+  -u http://TARGET:PORT/test -p PASS -k KEY \
+  -t JAVA_AES_RAW --header 'X-Gate: test-gate' -- id
+```
+
+Netty 模板用 channel attribute 保存每个连接的请求和 body，避免 `@Sharable` 实例字段在并发连接间串数据；RAW 变体按字节累积 body。
+
+### WebSocket / RawWebSocket
+
+1. 挂载类型选 `WebSocket` 或 `RawWebSocket`，加密器必须选 `JAVA_WEB_SOCKET_AES_RAW`；`cryption` 与挂载类型不匹配时生成会直接报错。
+2. 生成时 `urlPattern` 要填具体路径（如 `/hwws`），不能是 `/*`。
+3. 客户端用 `ws://` 连接，密码 `-p` 在该协议下不参与加密，密钥 `-k` 必须一致：
+
+```bash
+java -jar godzilla-cli.jar exec \
+  -u ws://TARGET:PORT/hwws -p PASS -k KEY \
+  -t JAVA_WEB_SOCKET_AES_RAW -- id
+```
+
+`WebSocket` 走容器 JSR-356 `ServerContainer` 注册 Endpoint；`RawWebSocket` 由注入器内置的 `$RawWsHelper` 接管连接器 socket，适合 Nginx 等会剥离 `Upgrade` 头的场景。
+
+## 免杀说明
+
+本工具提供的是**静态特征收敛**，不是行为免杀：
+
+- 类名/包名使用与目标中间件一致的随机采样（`NameSampler`），生成物中没有固定的 `com.fasterxml.jackson`、`BeanUtils`、`_pf*` 等 JMG 特征。
+- 模板方法名保持短中性（`run` / `x` / `execute` / `readBody`），没有 `kencrypt` / `kdecrypt` 这类固定命名。
+- 支持 `obfuscation`（字节码混淆）选项，可进一步改写方法名/字段名；已验证 Filter 的 `BASE64 / RAW / PRO / PROFILE` 在开启混淆后仍可正常连接。
+- 流量入口头（`headerName` / `headerValue`）是必填门闩，未带该头的业务请求会继续走原容器链路。
+
+> 静态改名/换组件不能绕过行为型 `mem_webshell` 检测（例如青藤）：Filter / Valve / Listener 在独立 JVM 中都会被行为规则命中。需要规避行为检测时应改注入行为或改用非内存马路径，而不是只依赖本工具。
+
+## 已验证矩阵
+
+| 中间件 | 版本 | 类型 | 加密器 | 结果 |
+| --- | --- | --- | --- | --- |
+| Tomcat | 9.0.x / JDK21 | Filter、Valve、Listener、Servlet、ProxyValve | 全部 5 种 | 通过 |
+| Tomcat | 8.5 / JDK8 | Filter | 全部 5 种 | 通过 |
+| Tomcat | 10.1 / JDK11（Jakarta） | JakartaFilter、JakartaServlet、JakartaListener | 全部 5 种 | 通过 |
+| Jetty | 9.4 / JDK8 | Filter、Handler、Listener、Servlet | 全部 5 种 | 通过 |
+| Undertow（Spring Boot 2） | JDK8 | Filter、Servlet、Listener | 全部 5 种 | 通过 |
+| Spring WebMVC（Spring Boot 2） | JDK8 | Interceptor（需命中已有路由）、ControllerHandler | 全部 5 种 | 通过 |
+| Struts2 | 2.5 / Tomcat 8 | Action | 全部 5 种 | 通过 |
+| Spring WebFlux（Reactor Netty） | Spring Boot 2 / JDK8 | NettyHandler | 全部 5 种 HTTP 加密器 | 通过 |
+| Tomcat | 9.0.x / JDK21 | WebSocket、RawWebSocket | `JAVA_WEB_SOCKET_AES_RAW` | 通过 |
+| Tomcat | 10.1 / JDK11（Jakarta） | JakartaWebSocket、JakartaRawWebSocket | `JAVA_WEB_SOCKET_AES_RAW` | 通过 |
+
+连接验证统一使用 `godzilla-cli`：`-t <cryption>` 选择对应加密器，`--header 'X-Gate: test-gate'` 携带生成时的入口头，`exec -- id` 校验命令执行。
+
+`JAVA_AES_BASE64_PROFILE` 另外用 `500`、`404`、`baidu`、`Ecology`、`hunter`、`qax_vpn`、`seeyon` 七个 `profiles/*.profile` 依次连接同一个内存马，均能正常执行命令；服务端不感知具体 profile，模板由客户端运行时下发。
+
+Tomcat Agent 类型（`AgentFilterChain`）与开启 `obfuscation` 的 Filter 也已验证：前者用 `AgentJarWithJREAttacher` 投递，后者 `BASE64 / RAW / PRO / PROFILE` 均可连接。

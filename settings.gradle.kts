@@ -58,6 +58,7 @@ include("memshell-party-server:memshell-party-server-all")
 
 // ShellTool modules
 include("memshell-party-shelltool:memshell-party-shelltool-godzilla")
+include("memshell-party-shelltool:memshell-party-shelltool-godzilla-hw")
 include("memshell-party-shelltool:memshell-party-shelltool-behinder")
 include("memshell-party-shelltool:memshell-party-shelltool-command")
 include("memshell-party-shelltool:memshell-party-shelltool-suo5")

